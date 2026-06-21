@@ -1,0 +1,234 @@
+@import "tailwindcss";
+
+:root {
+  font-family: "Inter", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  --text-color: #213547;
+  --background-color: #f7f7f7;
+  --button-bg-color: #646cff;
+  --button-text-color: #ffffff;
+  --hover-button-bg-color: #535bf2;
+}
+
+html,
+body,
+div#root {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  background-color: var(--background-color);
+  color: var(--text-color);
+}
+
+h1 {
+  margin: 0 0 20px 0;
+  color: var(--text-color);
+}
+
+button {
+  margin: 10px;
+  padding: 10px 20px;
+  min-width: 100px;
+  background-color: var(--button-bg-color);
+  color: var(--button-text-color);
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+button:hover {
+  background-color: var(--hover-button-bg-color);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+select {
+  min-width: 130px;
+  padding: 8px 10px;
+  border: 1px solid #d0d5dd;
+  border-radius: 5px;
+  background: #ffffff;
+  color: var(--text-color);
+}
+
+.patent-editor {
+  min-height: calc(100vh - 180px);
+  width: 100%;
+  padding: 24px 32px;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  background: #ffffff;
+  cursor: text;
+  outline: none;
+}
+
+.patent-editor:focus {
+  border-color: var(--button-bg-color);
+  box-shadow: 0 0 0 3px rgba(100, 108, 255, 0.18);
+}
+
+.patent-editor p {
+  margin: 0 0 12px;
+}
+
+.patent-editor h1 {
+  margin: 0 0 20px;
+}
+
+.ai-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 300px;
+  max-height: calc(100vh - 190px);
+  color: var(--text-color);
+}
+
+.ai-panel-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 4px 10px 0;
+}
+
+.ai-panel-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.ai-panel-header span {
+  color: #667085;
+  font-size: 12px;
+}
+
+.ai-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 130px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 10px;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  background: #ffffff;
+  scroll-behavior: smooth;
+}
+
+.ai-empty {
+  margin: 0;
+  color: #667085;
+  font-size: 14px;
+}
+
+.ai-message {
+  max-width: 88%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.ai-message.user {
+  align-self: flex-end;
+  background: #edf4ff;
+  border-bottom-right-radius: 2px;
+}
+
+.ai-message.assistant {
+  align-self: flex-start;
+  background: #f2f4f7;
+  border-bottom-left-radius: 2px;
+}
+
+.ai-dropzone {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  border: 1px dashed #98a2b3;
+  border-radius: 6px;
+  background: #fcfcfd;
+  color: #667085;
+  font-size: 14px;
+}
+
+.ai-dropzone input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.ai-context-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ai-context-list button {
+  min-width: 0;
+  max-width: 138px;
+  margin: 0;
+  padding: 6px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: #344054;
+  font-size: 12px;
+}
+
+.ai-panel textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 92px;
+  max-height: 180px;
+  padding: 10px;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  color: var(--text-color);
+  font: inherit;
+  line-height: 1.4;
+}
+
+.ai-panel textarea:focus {
+  border-color: var(--button-bg-color);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(100, 108, 255, 0.18);
+}
+
+.ai-panel > button {
+  width: calc(100% - 20px);
+  margin-top: 4px;
+}
+
+.ai-error {
+  padding: 8px 10px;
+  border: 1px solid #fecdca;
+  border-radius: 6px;
+  background: #fffbfa;
+  color: #b42318;
+  font-size: 13px;
+}
+
+/* Additional media query for light mode if needed */
+@media (prefers-color-scheme: light) {
+  :root {
+    --text-color: #213547;
+    --background-color: #ffffff;
+    --button-bg-color: #747bff;
+    --hover-button-bg-color: #646cff;
+  }
+}
