@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import time
 from dataclasses import dataclass
 from html import escape
 from html.parser import HTMLParser
@@ -13,6 +14,9 @@ import app.schemas as schemas
 
 
 MAX_CONTEXT_FILES = 4
+DEFAULT_OPENAI_MODEL = "gpt-5.2-2025-12-11"
+DEFAULT_MAX_ESTIMATED_INPUT_TOKENS = 50_000
+DEFAULT_MAX_COMPLETION_TOKENS = 1_200
 ALLOWED_SNIPPET_TAGS = {"p", "h1", "h2", "h3", "strong", "em", "ol", "ul", "li", "br"}
 BLOCK_PATTERN = re.compile(
     r"<(?P<tag>p|h1|h2|h3|li)\b[^>]*>.*?</(?P=tag)>",
@@ -136,6 +140,17 @@ def normalize_text(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip()
 
 
+def get_int_env(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+
+
+def estimate_tokens(value: str) -> int:
+    return max(1, (len(value) + 3) // 4)
+
+
 def extract_text(html: str) -> str:
     parser = TextExtractor()
     parser.feed(html)
@@ -194,6 +209,30 @@ def build_model_input(
         },
         ensure_ascii=False,
     )
+
+
+def estimate_request_input_tokens(
+    request: schemas.AIEditRequest, blocks: list[DocumentBlock]
+) -> int:
+    return estimate_tokens(system_prompt()) + estimate_tokens(
+        build_model_input(request, blocks)
+    )
+
+
+def validate_request_budget(
+    request: schemas.AIEditRequest, blocks: list[DocumentBlock]
+) -> int:
+    estimated_input_tokens = estimate_request_input_tokens(request, blocks)
+    max_estimated_input_tokens = get_int_env(
+        "AI_MAX_ESTIMATED_INPUT_TOKENS", DEFAULT_MAX_ESTIMATED_INPUT_TOKENS
+    )
+    if estimated_input_tokens > max_estimated_input_tokens:
+        raise AIEditorError(
+            "AI edit request is too large for the configured token budget "
+            f"({estimated_input_tokens} estimated input tokens, "
+            f"limit {max_estimated_input_tokens})"
+        )
+    return estimated_input_tokens
 
 
 def structured_output_schema() -> dict:
@@ -273,7 +312,12 @@ def call_openai_for_edit(
         raise AIEditorError("OPENAI_API_KEY is not configured")
 
     client = OpenAI(api_key=api_key)
-    model = os.getenv("OPENAI_MODEL", "gpt-4.1")
+    model = os.getenv("OPENAI_MODEL", DEFAULT_OPENAI_MODEL)
+    estimated_input_tokens = estimate_request_input_tokens(request, blocks)
+    max_completion_tokens = get_int_env(
+        "AI_MAX_COMPLETION_TOKENS", DEFAULT_MAX_COMPLETION_TOKENS
+    )
+    started_at = time.perf_counter()
     try:
         response = client.chat.completions.create(
             model=model,
@@ -289,10 +333,20 @@ def call_openai_for_edit(
                     "schema": structured_output_schema(),
                 },
             },
+            max_completion_tokens=max_completion_tokens,
         )
     except OpenAIError as exc:
         raise AIEditorError("AI edit request failed") from exc
 
+    latency_ms = round((time.perf_counter() - started_at) * 1000)
+    usage = schemas.AIUsageMetadata(
+        model=model,
+        estimated_input_tokens=estimated_input_tokens,
+        prompt_tokens=getattr(response.usage, "prompt_tokens", None),
+        completion_tokens=getattr(response.usage, "completion_tokens", None),
+        total_tokens=getattr(response.usage, "total_tokens", None),
+        latency_ms=latency_ms,
+    )
     message = response.choices[0].message
     if getattr(message, "refusal", None):
         return schemas.AIEditResponse(
@@ -300,13 +354,14 @@ def call_openai_for_edit(
             summary="The edit request was refused.",
             content=request.content,
             operations=[],
+            usage=usage,
         )
     if not message.content:
         raise AIEditorError("AI returned an empty edit response")
 
     try:
         parsed = json.loads(message.content)
-        return schemas.AIEditResponse(content=request.content, **parsed)
+        return schemas.AIEditResponse(content=request.content, usage=usage, **parsed)
     except (json.JSONDecodeError, ValidationError) as exc:
         raise AIEditorError("AI returned an invalid edit response") from exc
 
@@ -451,6 +506,7 @@ def edit_document(
     blocks = extract_blocks(request.content)
     if not blocks:
         raise AIEditorError("Document does not contain editable blocks")
+    estimated_input_tokens = validate_request_budget(request, blocks)
 
     provider = decision_provider or call_openai_for_edit
     decision = provider(request, blocks)
@@ -466,4 +522,9 @@ def edit_document(
         content=content,
         operations=operations,
         clarifying_question=decision.clarifying_question,
+        usage=decision.usage
+        or schemas.AIUsageMetadata(
+            model=os.getenv("OPENAI_MODEL", DEFAULT_OPENAI_MODEL),
+            estimated_input_tokens=estimated_input_tokens,
+        ),
     )

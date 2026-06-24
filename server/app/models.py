@@ -28,6 +28,7 @@ class DocumentVersion(Base):
     id = Column(Integer, primary_key=True, index=True)
     document_id = Column(Integer, ForeignKey("document.id"), nullable=False, index=True)
     version_number = Column(Integer, nullable=False)
+    revision = Column(Integer, nullable=False, default=1, server_default="1")
     content = Column(Text, nullable=False)
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

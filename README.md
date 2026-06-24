@@ -73,3 +73,5 @@ Good luck!
 Implemented Task 1 document versioning across the database model, FastAPI routes, and React client. Users can now create versions, switch between existing versions, and save edits to the selected version without creating another version.
 
 Implemented Task 2 Option A with a constrained AI editor panel, drag-and-drop `.txt` context upload, structured backend AI edit operations, HTML sanitization, evidence validation, and strict guardrails to avoid prompt injection and unsupported patent claim additions.
+
+Added an incremental hardening pass with revision-based stale-save protection, dirty/save/conflict UI states, unsaved-change warnings, server-side save sanitization, AI proposal apply/discard review, configurable AI token budgets, output caps, usage metadata, and a newer configurable default model.

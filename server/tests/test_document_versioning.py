@@ -25,6 +25,7 @@ class DocumentVersioningTest(unittest.TestCase):
         self.assertEqual(data["id"], 1)
         self.assertIn("Claims", data["content"])
         self.assertEqual(data["current_version"]["version_number"], 1)
+        self.assertEqual(data["current_version"]["revision"], 1)
         self.assertEqual(len(data["versions"]), 1)
 
     def test_create_version_from_submitted_content(self):
@@ -36,6 +37,7 @@ class DocumentVersioningTest(unittest.TestCase):
         version = response.json()
         self.assertEqual(version["version_number"], 2)
         self.assertEqual(version["content"], "<p>Version 2</p>")
+        self.assertEqual(version["revision"], 1)
 
         document_response = self.client.get(
             f"/document/1?version_id={version['id']}"
@@ -54,10 +56,14 @@ class DocumentVersioningTest(unittest.TestCase):
 
         save_response = self.client.put(
             f"/document/1/versions/{first_version_id}",
-            json={"content": "<p>Updated version 1</p>"},
+            json={
+                "content": "<p>Updated version 1</p>",
+                "base_revision": original_document["current_version"]["revision"],
+            },
         )
 
         self.assertEqual(save_response.status_code, 200)
+        self.assertEqual(save_response.json()["revision"], 2)
         first_version_response = self.client.get(
             f"/document/1/versions/{first_version_id}"
         )
@@ -68,6 +74,40 @@ class DocumentVersioningTest(unittest.TestCase):
             first_version_response.json()["content"], "<p>Updated version 1</p>"
         )
         self.assertEqual(second_version_response.json()["content"], "<p>Version 2</p>")
+
+    def test_stale_save_returns_conflict(self):
+        original_document = self.client.get("/document/1").json()
+        version_id = original_document["current_version"]["id"]
+
+        first_save = self.client.put(
+            f"/document/1/versions/{version_id}",
+            json={"content": "<p>First save</p>", "base_revision": 1},
+        )
+        stale_save = self.client.put(
+            f"/document/1/versions/{version_id}",
+            json={"content": "<p>Stale save</p>", "base_revision": 1},
+        )
+
+        self.assertEqual(first_save.status_code, 200)
+        self.assertEqual(stale_save.status_code, 409)
+        self.assertEqual(stale_save.json()["detail"]["current_revision"], 2)
+        current_version = self.client.get(f"/document/1/versions/{version_id}").json()
+        self.assertEqual(current_version["content"], "<p>First save</p>")
+
+    def test_save_sanitizes_html(self):
+        original_document = self.client.get("/document/1").json()
+        version_id = original_document["current_version"]["id"]
+
+        response = self.client.put(
+            f"/document/1/versions/{version_id}",
+            json={
+                "content": '<p onclick="alert(1)">Safe</p><script>alert(1)</script>',
+                "base_revision": 1,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["content"], "<p>Safe</p>")
 
     def test_missing_document_returns_404(self):
         response = self.client.get("/document/999")

@@ -11,6 +11,7 @@ import app.schemas as schemas
 from app.ai_editor import AIEditorError, edit_document
 from app.data import DOCUMENT_1, DOCUMENT_2
 from app.db import Base, SessionLocal, engine, get_db
+from app.html_safety import sanitize_document_html
 
 
 def seed_initial_documents(db: Session) -> None:
@@ -169,7 +170,7 @@ def create_document_version(
     """Create a new document version from submitted content or an existing version."""
     get_document_or_404(document_id, db)
     if version_request.content is not None:
-        content = version_request.content
+        content = sanitize_document_html(version_request.content)
     elif version_request.source_version_id is not None:
         source_version = get_version_or_404(
             document_id, version_request.source_version_id, db
@@ -196,13 +197,23 @@ def create_document_version(
 def save_document_version(
     document_id: int,
     version_id: int,
-    document: schemas.DocumentBase,
+    document: schemas.DocumentSaveRequest,
     db: Session = Depends(get_db),
 ) -> schemas.DocumentVersionRead:
     """Save changes to an existing document version."""
     get_document_or_404(document_id, db)
     version = get_version_or_404(document_id, version_id, db)
-    version.content = document.content
+    if document.base_revision is not None and document.base_revision != version.revision:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "Document version has changed since it was loaded",
+                "current_revision": version.revision,
+                "current_content": version.content,
+            },
+        )
+    version.content = sanitize_document_html(document.content)
+    version.revision += 1
     db.commit()
     db.refresh(version)
     return version
@@ -210,19 +221,35 @@ def save_document_version(
 
 @app.post("/save/{document_id}")
 def save(
-    document_id: int, document: schemas.DocumentBase, db: Session = Depends(get_db)
+    document_id: int,
+    document: schemas.DocumentSaveRequest,
+    db: Session = Depends(get_db),
 ):
     """Save the latest document version to preserve the original API contract."""
     get_document_or_404(document_id, db)
     latest_version = get_latest_version(document_id, db)
     if latest_version is None:
         raise HTTPException(status_code=404, detail="Document has no versions")
-    latest_version.content = document.content
+    if (
+        document.base_revision is not None
+        and document.base_revision != latest_version.revision
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "Document version has changed since it was loaded",
+                "current_revision": latest_version.revision,
+                "current_content": latest_version.content,
+            },
+        )
+    latest_version.content = sanitize_document_html(document.content)
+    latest_version.revision += 1
     db.commit()
     db.refresh(latest_version)
     return {
         "document_id": document_id,
         "version_id": latest_version.id,
+        "revision": latest_version.revision,
         "content": latest_version.content,
     }
 

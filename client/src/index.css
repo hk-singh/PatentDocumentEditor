@@ -60,6 +60,37 @@ select {
   color: var(--text-color);
 }
 
+.save-status {
+  align-self: flex-start;
+  min-height: 24px;
+  padding: 3px 10px;
+  border-radius: 5px;
+  background: #f2f4f7;
+  color: #475467;
+  font-size: 13px;
+}
+
+.save-status-dirty {
+  background: #fff7e6;
+  color: #8a4b00;
+}
+
+.save-status-saving {
+  background: #edf4ff;
+  color: #175cd3;
+}
+
+.save-status-saved {
+  background: #ecfdf3;
+  color: #067647;
+}
+
+.save-status-conflict,
+.save-status-error {
+  background: #fffbfa;
+  color: #b42318;
+}
+
 .patent-editor {
   min-height: calc(100vh - 180px);
   width: 100%;
@@ -190,6 +221,41 @@ select {
   font-size: 12px;
 }
 
+.ai-proposal {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid #fedf89;
+  border-radius: 6px;
+  background: #fffaeb;
+  color: #7a2e0e;
+  font-size: 13px;
+}
+
+.ai-proposal strong,
+.ai-proposal p {
+  margin: 0;
+}
+
+.ai-proposal span,
+.ai-proposal small {
+  color: #93370d;
+}
+
+.ai-proposal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.ai-proposal-actions button {
+  min-width: 0;
+  flex: 1;
+  margin: 0;
+  padding: 7px 8px;
+}
+
 .ai-panel textarea {
   width: 100%;
   resize: vertical;
@@ -201,6 +267,11 @@ select {
   color: var(--text-color);
   font: inherit;
   line-height: 1.4;
+}
+
+.ai-panel textarea:disabled {
+  background: #f2f4f7;
+  cursor: not-allowed;
 }
 
 .ai-panel textarea:focus {

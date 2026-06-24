@@ -7,6 +7,10 @@ class DocumentBase(BaseModel):
     content: str
 
 
+class DocumentSaveRequest(DocumentBase):
+    base_revision: int | None = Field(default=None, ge=1)
+
+
 class DocumentVersionCreate(BaseModel):
     content: str | None = None
     source_version_id: int | None = None
@@ -18,6 +22,7 @@ class DocumentVersionMetadata(BaseModel):
     id: int
     document_id: int
     version_number: int
+    revision: int
 
 
 class DocumentVersionRead(DocumentVersionMetadata):
@@ -55,9 +60,19 @@ class AIEditOperation(BaseModel):
     basis: list[AIEditEvidence] = Field(default_factory=list)
 
 
+class AIUsageMetadata(BaseModel):
+    model: str
+    estimated_input_tokens: int
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    total_tokens: int | None = None
+    latency_ms: int | None = None
+
+
 class AIEditResponse(BaseModel):
     status: Literal["applied", "needs_clarification", "refused"]
     summary: str
     content: str
     operations: list[AIEditOperation] = Field(default_factory=list)
     clarifying_question: str | None = None
+    usage: AIUsageMetadata | None = None

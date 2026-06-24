@@ -16,17 +16,35 @@ interface AIEditOperation {
   html: string | null;
 }
 
+interface AIUsageMetadata {
+  model: string;
+  estimated_input_tokens: number;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  total_tokens: number | null;
+  latency_ms: number | null;
+}
+
 interface AIEditResponse {
   status: "applied" | "needs_clarification" | "refused";
   summary: string;
   content: string;
   operations: AIEditOperation[];
   clarifying_question: string | null;
+  usage: AIUsageMetadata | null;
 }
 
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+}
+
+interface PendingProposal {
+  content: string;
+  baseContent: string;
+  summary: string;
+  operationCount: number;
+  usage: AIUsageMetadata | null;
 }
 
 interface AIEditorPanelProps {
@@ -45,11 +63,14 @@ export default function AIEditorPanel({
   const [instruction, setInstruction] = useState("");
   const [uploadedContexts, setUploadedContexts] = useState<UploadedContext[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [pendingProposal, setPendingProposal] = useState<PendingProposal | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  const canSend = Boolean(documentId && versionId && instruction.trim() && !isEditing);
+  const canSend = Boolean(
+    documentId && versionId && instruction.trim() && !isEditing && !pendingProposal
+  );
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -86,8 +107,16 @@ export default function AIEditorPanel({
       });
 
       if (response.data.status === "applied") {
-        onContentUpdated(response.data.content);
-        addAssistantMessage(response.data.summary);
+        setPendingProposal({
+          content: response.data.content,
+          baseContent: content,
+          summary: response.data.summary,
+          operationCount: response.data.operations.length,
+          usage: response.data.usage,
+        });
+        addAssistantMessage(
+          `${response.data.summary}\n\nReview the proposed edit, then apply or discard it.`
+        );
       } else if (response.data.status === "needs_clarification") {
         addAssistantMessage(
           response.data.clarifying_question ?? response.data.summary
@@ -101,6 +130,28 @@ export default function AIEditorPanel({
     } finally {
       setIsEditing(false);
     }
+  };
+
+  const applyProposal = () => {
+    if (!pendingProposal) {
+      return;
+    }
+    if (content !== pendingProposal.baseContent) {
+      setErrorMessage(
+        "The document changed after this AI proposal was generated. Discard it and request a fresh edit."
+      );
+      return;
+    }
+    onContentUpdated(pendingProposal.content);
+    addAssistantMessage("Applied the proposed edit to the editor. Save the version to persist it.");
+    setPendingProposal(null);
+    setErrorMessage("");
+  };
+
+  const discardProposal = () => {
+    setPendingProposal(null);
+    setErrorMessage("");
+    addAssistantMessage("Discarded the proposed edit.");
   };
 
   const readTextFile = async (file: File): Promise<UploadedContext> => {
@@ -214,11 +265,37 @@ export default function AIEditorPanel({
         </div>
       )}
 
+      {pendingProposal && (
+        <div className="ai-proposal">
+          <strong>Pending AI proposal</strong>
+          <span>
+            {pendingProposal.operationCount} operation
+            {pendingProposal.operationCount === 1 ? "" : "s"}
+          </span>
+          <p>{pendingProposal.summary}</p>
+          {pendingProposal.usage && (
+            <small>
+              {pendingProposal.usage.model} - approx.{" "}
+              {pendingProposal.usage.estimated_input_tokens.toLocaleString()} input tokens
+            </small>
+          )}
+          <div className="ai-proposal-actions">
+            <button type="button" onClick={applyProposal}>
+              Apply
+            </button>
+            <button type="button" onClick={discardProposal}>
+              Discard
+            </button>
+          </div>
+        </div>
+      )}
+
       <textarea
         value={instruction}
         onChange={(event) => setInstruction(event.target.value)}
         placeholder="Make claim 1 bold"
         rows={4}
+        disabled={Boolean(pendingProposal)}
         onKeyDown={(event) => {
           if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
             void sendInstruction();

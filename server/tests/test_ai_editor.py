@@ -1,3 +1,4 @@
+import os
 import unittest
 
 import app.schemas as schemas
@@ -181,6 +182,25 @@ class AIEditorTest(unittest.TestCase):
                 content=request.content,
                 operations=[],
             ))
+
+    def test_rejects_request_over_configured_token_budget(self):
+        original_limit = os.environ.get("AI_MAX_ESTIMATED_INPUT_TOKENS")
+        os.environ["AI_MAX_ESTIMATED_INPUT_TOKENS"] = "10"
+        request = make_request("Make claim 1 bold")
+        try:
+            with self.assertRaises(AIEditorError) as error:
+                edit_document(request, lambda _, __: schemas.AIEditResponse(
+                    status="refused",
+                    summary="Refused.",
+                    content=request.content,
+                    operations=[],
+                ))
+            self.assertIn("configured token budget", str(error.exception))
+        finally:
+            if original_limit is None:
+                os.environ.pop("AI_MAX_ESTIMATED_INPUT_TOKENS", None)
+            else:
+                os.environ["AI_MAX_ESTIMATED_INPUT_TOKENS"] = original_limit
 
 
 if __name__ == "__main__":
