@@ -1,77 +1,78 @@
-# Solve Intelligence Engineering Challenge
+# Solve Intelligence Patent Document Editor
 
-## Objective
+A patent document review and editing application built for the Solve Intelligence
+engineering challenge. The app includes document versioning, a rich text editor,
+and a constrained AI editing panel for making patent document edits from natural
+language instructions.
 
-You have received a mock-up of a patent reviewing application from a junior colleague. It is incomplete and needs work. Your job is to extend and improve it to a standard you'd be comfortable shipping to production. This means:
+## Implemented Features
 
-- Clean code that is production quality
-- Unit tests
-- No bugs
+- Document versioning with create, switch, and save-in-place workflows.
+- Revision checks on save to prevent silent stale overwrites from another tab or
+  session.
+- TipTap-based patent document editing in the React client.
+- AI-powered editing through `POST /ai/edit`, backed by structured edit
+  operations rather than free-form model output.
+- Drag-and-drop `.txt` context upload for AI edits.
+- Pending AI proposals with apply/discard review before the editor content is
+  changed.
+- Server-side HTML sanitization for normal saves and AI-generated snippets.
+- Guardrails for prompt injection, unsupported factual additions, unsafe HTML,
+  oversized AI requests, and invalid context uploads.
+- Backend unit tests for versioning and AI guardrail behavior.
 
-After completing the tasks below, add a couple of sentences to the end of this file briefly outlining what improvements you made.
+## Run The App
 
-## Docker
+Create the server environment file first:
 
-Make sure you create a .env file (see .env.example) with the OpenAI API key we have provided.
-
-To build and run the application using Docker, execute the following command:
-
+```bash
+cp server/.env.example server/.env
 ```
-docker-compose up --build
+
+Edit `server/.env` and set `OPENAI_API_KEY` to a valid key. The default model is
+configured in that file and can be changed with `OPENAI_MODEL`.
+
+Then build and start both services:
+
+```bash
+docker compose up --build
 ```
 
-## Task 1: Implement Document Versioning
+Open the client at:
 
-Currently, the user can save a document, but there is no concept of **versioning**. Paying customers have expressed an interest in this and have requested the following:
+```text
+http://localhost:5173
+```
 
-1. The ability to create new versions
-2. The ability to switch between existing versions
-3. The ability to make changes to any of the existing versions and save those changes (without creating a new version)
+The FastAPI server is available at:
 
-You will need to modify the database model (`app/models.py`), add some API routes (`app/__main__.py`), and update the client-side code accordingly.
+```text
+http://localhost:8000
+```
 
-## Task 2: Choose One of the Following
+## Verification
 
-Complete **one** of the two options below.
+Run the backend tests:
 
-### Option A: AI-Powered Document Editing
+```bash
+docker compose run --rm server uv run python -m unittest discover -s tests
+```
 
-Implement a chat interface that allows users to edit the patent document using natural language instructions.
+Run the client checks:
 
-Minimal Requirements:
-1. A chat-style UI panel where users can type editing instructions
-2. The AI should interpret the instruction and modify the document HTML accordingly
-3. Changes should be applied to the editor and visible immediately
-4. Support drag-and-drop .txt file upload to the chat to provide additional context for the AI
+```bash
+cd client
+npm run lint
+npm run build
+```
 
+The latest verification completed successfully with 14 backend tests, client
+lint, and client production build passing.
 
-Example instructions your solution should handle:
-- "Make claim 1 bold"
-- "Delete claim 3"
-- "Add a new dependent claim after claim 2 that specifies the material is glass"
-- "Write a background section based on the prior art file I have uploaded"
+## Notes For Reviewers
 
-### Option B: Live Collaboration
+Detailed implementation notes, tradeoffs, limitations, and production follow-up
+recommendations are in `for_reviewer.md`.
 
-Implement real-time collaborative editing so multiple users can work on the same document simultaneously.
-
-Minimal Requirements:
-1. Multiple users should be able to view and edit the same document at the same time
-2. Changes made by one user should appear in real-time for all other users
-3. Show presence indicators (e.g., cursors, user avatars) to indicate where other users are editing
-4. Handle conflict resolution gracefully when multiple users edit the same section
-
-## Note
-You may use AI (and the API key we have provided) to assist with coding on this task. When we review submissions we will stress test your solution across a range of inputs and common user behaviours, so do consider this when designing your solution. 
-
-If your submission passes our review, the next stage will involve pair programming without AI assistance.
-
-Good luck!
-
-## Completed Improvements
-
-Implemented Task 1 document versioning across the database model, FastAPI routes, and React client. Users can now create versions, switch between existing versions, and save edits to the selected version without creating another version.
-
-Implemented Task 2 Option A with a constrained AI editor panel, drag-and-drop `.txt` context upload, structured backend AI edit operations, HTML sanitization, evidence validation, and strict guardrails to avoid prompt injection and unsupported patent claim additions.
-
-Added an incremental hardening pass with revision-based stale-save protection, dirty/save/conflict UI states, unsaved-change warnings, server-side save sanitization, AI proposal apply/discard review, configurable AI token budgets, output caps, usage metadata, and a newer configurable default model.
+The development database is in-memory SQLite and is seeded on server startup.
+Restarting the backend resets document changes.

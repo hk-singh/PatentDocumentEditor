@@ -1,40 +1,77 @@
 # Patent Reviewer Backend
 
+FastAPI backend for document loading, versioning, saving, and constrained
+AI-assisted patent document editing.
+
 ## Layout
 
-Application code is in the `app/` directory.
+Application code is in `app/`.
 
-```
+```text
 app
-├── __main__.py # FastAPI app, and routes
-├── models.py # DB models
-├── schemas.py # Schema objects
-├── data.py # Seed data
-└── db.py # Database utils
+├── __main__.py      # FastAPI app, routes, versioning, save endpoints
+├── ai_editor.py     # AI prompt construction, validation, and edit application
+├── data.py          # Seed patent documents
+├── db.py            # SQLAlchemy engine/session helpers
+├── html_safety.py   # Server-side HTML sanitizer
+├── models.py        # SQLAlchemy models
+└── schemas.py       # Pydantic request/response models
 ```
 
-## First-time setup
+Tests live in `tests/`.
 
-This project uses [uv](https://docs.astral.sh/uv/) for dependency management.
+## Environment
 
-```sh
-# Install uv (if not already installed)
-curl -LsSf https://astral.sh/uv/install.sh | sh
+Copy the example env file from the repository root:
 
-# Install dependencies
+```bash
+cp server/.env.example server/.env
+```
+
+Required:
+
+```text
+OPENAI_API_KEY=sk-...
+```
+
+Optional:
+
+```text
+OPENAI_MODEL=gpt-5.2-2025-12-11
+AI_MAX_ESTIMATED_INPUT_TOKENS=50000
+AI_MAX_COMPLETION_TOKENS=1200
+```
+
+## Running With Docker
+
+From the repository root:
+
+```bash
+docker compose up --build
+```
+
+The API will be available at `http://localhost:8000`.
+
+## Running Locally Without Docker
+
+This project uses `uv` for Python dependency management and requires Python
+3.13 or newer.
+
+```bash
 uv sync
-```
-
-Make sure you create a .env file (see .env.example) with the OpenAI API key we've provided.
-
-## Running locally
-
-To run the backend locally, with auto-reload on code changes,
-
-```sh
 uv run uvicorn app.__main__:app --reload
 ```
 
-## DB
+## Tests
 
-On start-up, the app will initialise an in-memory SQLite DB, and fill it with some seed data. If you decide that you want to reset your changes, all you need to do is re-run the backend.
+From the repository root, using the Docker service:
+
+```bash
+docker compose run --rm server uv run python -m unittest discover -s tests
+```
+
+## Database
+
+The app uses an in-memory SQLite database in this challenge implementation.
+Tables and seed documents are initialized on startup, so restarting the backend
+resets document edits and created versions.
